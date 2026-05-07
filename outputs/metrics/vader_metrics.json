@@ -1,0 +1,10 @@
+{
+  "total_reviews": 1855,
+  "correct_predictions": 1316,
+  "wrong_predictions": 539,
+  "accuracy": 0.7094,
+  "true_positives": 1110,
+  "true_negatives": 206,
+  "false_positives_vader": 188,
+  "false_negatives_vader": 351
+}
