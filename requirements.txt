@@ -1,0 +1,34 @@
+# Python 3.12
+#
+# Instalación estándar:
+#   pip install -r requirements.txt
+#
+# Si quieres usar GPU (CUDA 12.1):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   pip install -r requirements.txt
+#
+# Si quieres usar GPU (CUDA 12.4):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+#   pip install -r requirements.txt
+
+# ── Datos y cálculo ───────────────────────────────────────────────────────────
+pandas
+numpy
+scipy
+requests
+
+# ── Visualización ─────────────────────────────────────────────────────────────
+matplotlib
+
+# ── NLP ───────────────────────────────────────────────────────────────────────
+nltk
+spacy
+gensim
+pyldavis
+
+# ── Deep learning / transformers ──────────────────────────────────────────────
+# Para CPU: se instala automáticamente con el comando estándar
+# Para GPU: instala torch primero con el index-url de CUDA indicado arriba
+torch
+transformers
+tqdm
