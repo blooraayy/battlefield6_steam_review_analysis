@@ -1,8 +1,10 @@
+from pathlib import Path
+
 import requests
 import pandas as pd
 import time
 
-APP_ID = 3357650
+APP_ID = 2807960
 LANGUAGE = "english"
 NUM_PER_PAGE = 100
 MAX_REVIEWS = None       # cambiar a None para sacar todas
@@ -96,7 +98,7 @@ def main():
     print(f"Fecha más reciente: {df['date'].max()}")
 
     # Guardar CSV
-    output_path = "pragmata_reviews_raw.csv"
+    output_path = Path(__file__).parents[2] / "data" / "battlefield6_reviews_raw.csv"
     df.to_csv(output_path, index=False, encoding="utf-8")
     print(f"\nDataset guardado en: {output_path}")
 

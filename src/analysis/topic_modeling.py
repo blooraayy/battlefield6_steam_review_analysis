@@ -5,6 +5,7 @@ gráficos y una visualización interactiva con pyLDAvis.
 """
 
 import warnings
+from collections import Counter
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,16 +21,17 @@ ROOT = Path(__file__).parents[2]
 
 # Cargamos el CSV de sentimiento porque ya incluye text_lemmatized y vader_sentiment.
 # Si solo existe el CSV limpio, las columnas de VADER simplemente no estarán.
-INPUT_CSV = ROOT / "data" / "pragmata_reviews_sentiment.csv"
-OUTPUT_CSV = ROOT / "data" / "pragmata_reviews_topics.csv"
+INPUT_CSV = ROOT / "data" / "battlefield6_reviews_sentiment.csv"
+OUTPUT_CSV = ROOT / "data" / "battlefield6_reviews_topics.csv"
 FIGURES_DIR = ROOT / "outputs" / "figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
-NUM_TOPICS = 5       # número de temas a descubrir
-RANDOM_STATE = 42    # semilla para reproducibilidad
-NO_BELOW = 5         # ignorar tokens que aparezcan en menos de 5 documentos
-NO_ABOVE = 0.70      # ignorar tokens que aparezcan en más del 70% de los docs
+NUM_TOPICS = 5          # número de temas a descubrir
+RANDOM_STATE = 42       # semilla para reproducibilidad
+NO_BELOW = 5            # ignorar tokens que aparezcan en menos de 5 documentos
+NO_ABOVE = 0.70         # ignorar tokens que aparezcan en más del 70% de los docs
 EXAMPLES_PER_TOPIC = 3  # reseñas representativas a mostrar por tema
+SECONDARY_THRESHOLD = 0.20  # probabilidad mínima para considerar un tema secundario
 
 
 # ── 1. Carga de datos ─────────────────────────────────────────────────────────
@@ -78,30 +80,50 @@ print("    Entrenamiento completado.")
 
 # ── 5. Palabras clave por tema ────────────────────────────────────────────────
 print("\n[5/8] Palabras clave por tema:")
-topic_labels = {}
+
+topic_labels = {
+    0: "Rendimiento",
+    1: "Mecánicas de combate",
+    2: "Valoración general positiva",
+    3: "Ambientación y universo del juego",
+    4: "Historia y personajes"
+}
+
 for topic_id in range(NUM_TOPICS):
     words = lda_model.show_topic(topic_id, topn=10)
     keywords = ", ".join(word for word, _ in words)
-    topic_labels[topic_id] = f"Tema {topic_id}"
-    print(f"    Tema {topic_id}: {keywords}")
+    print(f"    {topic_labels[topic_id]}: {keywords}")
 print()
 
 
-# ── 6. Asignación de tema dominante ──────────────────────────────────────────
-# Para cada reseña tomamos el tema con mayor probabilidad en su distribución.
-print("[6/8] Asignando tema dominante a cada reseña...")
+# ── 6. Asignación de tema dominante y temas secundarios ──────────────────────
+print("[6/8] Asignando tema dominante y temas secundarios a cada reseña...")
 
-def get_dominant_topic(bow):
-    """Devuelve el id del tema con mayor probabilidad para un documento."""
+def get_topic_assignment(bow):
+    """
+    Devuelve (dominant_id, [secondary_labels]) donde secondary_labels son los
+    temas distintos del dominante cuya probabilidad supera SECONDARY_THRESHOLD.
+    """
     distribution = lda_model.get_document_topics(bow, minimum_probability=0.0)
     if not distribution:
-        return -1
-    return max(distribution, key=lambda x: x[1])[0]
+        return -1, []
+    dominant_id = max(distribution, key=lambda x: x[1])[0]
+    secondaries = [
+        topic_labels[tid]
+        for tid, prob in distribution
+        if tid != dominant_id and prob >= SECONDARY_THRESHOLD
+    ]
+    return dominant_id, secondaries
 
-df["dominant_topic"] = [get_dominant_topic(bow) for bow in corpus]
+assignments = [get_topic_assignment(bow) for bow in corpus]
+df["dominant_topic"] = [a[0] for a in assignments]
+df["secondary_topics"] = [", ".join(a[1]) if a[1] else "" for a in assignments]
 
+mixed_count = (df["secondary_topics"] != "").sum()
 print("    Distribución por tema dominante:")
 print(df["dominant_topic"].value_counts().sort_index().to_string())
+print(f"\n    Reseñas con temas secundarios (prob ≥ {SECONDARY_THRESHOLD}): {mixed_count} "
+      f"({mixed_count / len(df) * 100:.1f} %)")
 
 
 # ── 7. Ejemplos representativos por tema ─────────────────────────────────────
@@ -122,10 +144,9 @@ for topic_id in range(NUM_TOPICS):
 
     words = lda_model.show_topic(topic_id, topn=8)
     keywords = ", ".join(word for word, _ in words)
-    print(f"\n  ── Tema {topic_id} [{keywords}] ──")
+    print(f"\n  ── {topic_labels[topic_id]} [{keywords}] ──")
     for _, row in top_rows.iterrows():
-        print(f"    [{row['voted_up']} | {row.get('vader_sentiment', 'N/A')}] "
-              f"{row['text_cleaned'][:120]}")
+        print(f"    [{row.get('vader_sentiment', 'N/A')}] {row['text_cleaned'][:120]}")
 
 
 # ── 8. Gráficos ───────────────────────────────────────────────────────────────
@@ -134,7 +155,7 @@ TOPIC_COLORS = ["#5C6BC0", "#26A69A", "#FFA726", "#EF5350", "#66BB6A"]
 
 # ── 8.1 Distribución de reseñas por tema dominante ───────────────────────────
 counts = df["dominant_topic"].value_counts().sort_index()
-labels = [f"Tema {i}" for i in counts.index]
+labels = [topic_labels[i] for i in counts.index]
 
 fig, ax = plt.subplots(figsize=(8, 5))
 bars = ax.bar(labels, counts.values,
@@ -169,36 +190,46 @@ if "vader_sentiment" in df.columns:
     ax.set_title("Tema dominante vs vader_sentiment", fontsize=13)
     ax.set_xlabel("Tema dominante")
     ax.set_ylabel("Número de reseñas")
-    ax.set_xticklabels([f"Tema {i}" for i in cross_vs.index])
+    ax.set_xticklabels([topic_labels[i] for i in cross_vs.index], rotation=15, ha="right")
     ax.legend(title="vader_sentiment")
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "07_topic_vs_vader_sentiment.png", dpi=150)
     plt.close(fig)
 
-# ── 8.3 Tema dominante vs voted_up ───────────────────────────────────────────
-cross_vu = (
-    df.groupby(["dominant_topic", "voted_up"])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(range(NUM_TOPICS))
-)
-cross_vu.columns = [
-    "Negativa (voted_up=False)" if not c else "Positiva (voted_up=True)"
-    for c in cross_vu.columns
-]
-fig, ax = plt.subplots(figsize=(10, 5))
-cross_vu.plot(
-    kind="bar", ax=ax, rot=0,
-    color=["#EF5350", "#4CAF50"], edgecolor="white",
-)
-ax.set_title("Tema dominante vs voted_up", fontsize=13)
-ax.set_xlabel("Tema dominante")
-ax.set_ylabel("Número de reseñas")
-ax.set_xticklabels([f"Tema {i}" for i in cross_vu.index])
-ax.legend(title="voted_up")
-fig.tight_layout()
-fig.savefig(FIGURES_DIR / "08_topic_vs_voted_up.png", dpi=150)
-plt.close(fig)
+# ── 8.3 Temas dominantes por categoría de sentimiento ────────────────────────
+if "vader_sentiment" in df.columns:
+    sentiment_colors = {"negative": "#EF5350", "neutral": "#FFC107", "positive": "#4CAF50"}
+    for sentiment in ["negative", "neutral", "positive"]:
+        subset = df[df["vader_sentiment"] == sentiment]
+        if subset.empty:
+            continue
+
+        all_topic_counts = Counter()
+        for _, row in subset.iterrows():
+            all_topic_counts[topic_labels[row["dominant_topic"]]] += 1
+            for t in row["secondary_topics"].split(", "):
+                if t:
+                    all_topic_counts[t] += 1
+        all_labels = list(topic_labels.values())
+        s_values = [all_topic_counts.get(lbl, 0) for lbl in all_labels]
+        title = f"Todos los temas en reseñas {sentiment} (dominante + secundarios)"
+        ylabel = "Apariciones"
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        bars = ax.bar(all_labels, s_values,
+                      color=sentiment_colors[sentiment], edgecolor="white", alpha=0.85)
+        for bar in bars:
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
+                    str(int(bar.get_height())), ha="center", va="bottom", fontsize=10)
+        ax.set_title(title, fontsize=13)
+        ax.set_xlabel("Tema")
+        ax.set_ylabel(ylabel)
+        ax.set_ylim(0, max(s_values) * 1.15 if max(s_values) > 0 else 1)
+        ax.set_xticklabels(all_labels, rotation=15, ha="right")
+        fig.tight_layout()
+        fname = {"negative": "14", "neutral": "15", "positive": "16"}[sentiment]
+        fig.savefig(FIGURES_DIR / f"{fname}_topics_{sentiment}.png", dpi=150)
+        plt.close(fig)
 
 print(f"    Gráficos guardados en: {FIGURES_DIR}")
 
@@ -224,6 +255,8 @@ except Exception as exc:
 
 # ── 10. Guardar CSV enriquecido ───────────────────────────────────────────────
 print(f"[10/10] Guardando CSV con temas en: {OUTPUT_CSV}")
+df["topic_label"] = df["dominant_topic"].map(topic_labels)
+# secondary_topics: cadena vacía si la reseña es monotemática, o lista separada por comas
 df.to_csv(OUTPUT_CSV, index=False)
 
 print("\n── Proceso completado ──────────────────────────────────────")

@@ -13,8 +13,8 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 # ── Rutas del proyecto ────────────────────────────────────────────────────────
 ROOT = Path(__file__).parents[2]
-CLEAN_CSV = ROOT / "data" / "pragmata_reviews_clean.csv"
-OUTPUT_CSV = ROOT / "data" / "pragmata_reviews_sentiment.csv"
+CLEAN_CSV = ROOT / "data" / "battlefield6_reviews_clean.csv"
+OUTPUT_CSV = ROOT / "data" / "battlefield6_reviews_sentiment.csv"
 FIGURES_DIR = ROOT / "outputs" / "figures"
 METRICS_DIR = ROOT / "outputs" / "metrics"
 
@@ -207,6 +207,10 @@ fn = int(((vader_binary == False) & (voted_binary == True)).sum())   # VADER dic
 tp = int(((vader_binary == True) & (voted_binary == True)).sum())
 tn = int(((vader_binary == False) & (voted_binary == False)).sum())
 
+precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+f1        = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+
 metrics = {
     "total_reviews": total,
     "correct_predictions": correct,
@@ -216,6 +220,9 @@ metrics = {
     "true_negatives": tn,
     "false_positives_vader": fp,
     "false_negatives_vader": fn,
+    "precision": round(precision, 4),
+    "recall": round(recall, 4),
+    "f1_score": round(f1, 4),
 }
 
 print("\n── Métricas VADER vs voted_up ──────────────────────────────")
@@ -227,6 +234,9 @@ print(f"  Verdaderos positivos (TP): {tp}")
 print(f"  Verdaderos negativos (TN): {tn}")
 print(f"  Falsos positivos VADER (FP): {fp}  ← VADER + pero Steam -")
 print(f"  Falsos negativos VADER (FN): {fn}  ← VADER - pero Steam +")
+print(f"  Precision          : {precision:.4f}")
+print(f"  Recall             : {recall:.4f}")
+print(f"  F1-score           : {f1:.4f}")
 print("────────────────────────────────────────────────────────────\n")
 
 

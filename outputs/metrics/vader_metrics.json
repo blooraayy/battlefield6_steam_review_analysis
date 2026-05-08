@@ -1,10 +1,13 @@
 {
-  "total_reviews": 1855,
-  "correct_predictions": 1316,
-  "wrong_predictions": 539,
-  "accuracy": 0.7094,
-  "true_positives": 1110,
-  "true_negatives": 206,
-  "false_positives_vader": 188,
-  "false_negatives_vader": 351
+  "total_reviews": 91197,
+  "correct_predictions": 62789,
+  "wrong_predictions": 28408,
+  "accuracy": 0.6885,
+  "true_positives": 40599,
+  "true_negatives": 22190,
+  "false_positives_vader": 12286,
+  "false_negatives_vader": 16122,
+  "precision": 0.7677,
+  "recall": 0.7158,
+  "f1_score": 0.7408
 }
