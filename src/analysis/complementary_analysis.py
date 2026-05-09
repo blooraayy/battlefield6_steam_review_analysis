@@ -47,7 +47,7 @@ print("[1] Sentimiento medio semanal + volumen (doble eje)...")
 
 weekly = (
     df.groupby("week")
-    .agg(sentiment_mean=("vader_compound", "mean"), volume=("vader_compound", "count"))
+    .agg(sentiment_mean=("roberta_compound", "mean"), volume=("roberta_compound", "count"))
     .reset_index()
 )
 
@@ -62,7 +62,7 @@ ax2.axhline(0, color="gray", linestyle="--", linewidth=0.8)
 
 ax1.set_xlabel("Semana")
 ax1.set_ylabel("Número de reseñas", color="#90CAF9")
-ax2.set_ylabel("Vader compound medio", color="#1565C0")
+ax2.set_ylabel("RoBERTa compound medio", color="#1565C0")
 ax1.tick_params(axis="x", rotation=30)
 ax2.set_ylim(-1, 1)
 
@@ -122,14 +122,14 @@ print("    Guardado: 10_weekly_topic_evolution.png")
 # BLOQUE 2 – ANÁLISIS DE ENGAGEMENT
 # ════════════════════════════════════════════════════════════════════════════════
 
-# ── Gráfico 3: playtime_hours vs vader_compound (dispersión + tendencia) ───────
+# ── Gráfico 3: playtime_hours vs roberta_compound (dispersión + tendencia) ─────
 # Un usuario que juega muchas horas y deja una reseña negativa es una señal
 # más fuerte que alguien con <1 h: detectar esa correlación es clave.
 # Usamos regresión lineal simple; el p-valor indica si la pendiente es real.
-print("[3] Dispersión playtime_hours vs vader_compound...")
+print("[3] Dispersión playtime_hours vs roberta_compound...")
 
 x_pt = df["playtime_hours"].values
-y_pt = df["vader_compound"].values
+y_pt = df["roberta_compound"].values
 slope, intercept, r, p, _ = stats.linregress(x_pt, y_pt)
 
 fig, ax = plt.subplots(figsize=(9, 5))
@@ -139,8 +139,8 @@ ax.plot(x_line, slope * x_line + intercept, color="#EF5350", linewidth=2,
         label=f"Tendencia  r={r:.3f}  p={p:.3f}")
 ax.axhline(0, color="gray", linestyle="--", linewidth=0.8)
 ax.set_xlabel("Horas jugadas")
-ax.set_ylabel("Vader compound")
-ax.set_title("Horas jugadas vs sentimiento (vader_compound)", fontsize=13)
+ax.set_ylabel("RoBERTa compound")
+ax.set_title("Horas jugadas vs sentimiento (roberta_compound)", fontsize=13)
 ax.legend()
 fig.tight_layout()
 fig.savefig(FIGURES_DIR / "11_playtime_vs_sentiment.png", dpi=150)
@@ -148,14 +148,14 @@ plt.close(fig)
 print(f"    r={r:.3f}, p={p:.4f} → Guardado: 11_playtime_vs_sentiment.png")
 
 
-# ── Gráfico 4: weighted_vote_score vs vader_compound (dispersión + tendencia) ──
+# ── Gráfico 4: weighted_vote_score vs roberta_compound (dispersión + tendencia) ─
 # weighted_vote_score es el proxy de 'votos útiles' de Steam. Si correlaciona
-# con vader_compound, las reseñas positivas reciben más validación de la comunidad,
+# con roberta_compound, las reseñas positivas reciben más validación de la comunidad,
 # lo que puede amplificar o suavizar la percepción pública del juego.
-print("[4] Dispersión weighted_vote_score vs vader_compound...")
+print("[4] Dispersión weighted_vote_score vs roberta_compound...")
 
 x_ws = df["weighted_vote_score"].values
-y_ws = df["vader_compound"].values
+y_ws = df["roberta_compound"].values
 slope2, intercept2, r2, p2, _ = stats.linregress(x_ws, y_ws)
 
 fig, ax = plt.subplots(figsize=(9, 5))
@@ -165,8 +165,8 @@ ax.plot(x_line2, slope2 * x_line2 + intercept2, color="#EF5350", linewidth=2,
         label=f"Tendencia  r={r2:.3f}  p={p2:.3f}")
 ax.axhline(0, color="gray", linestyle="--", linewidth=0.8)
 ax.set_xlabel("weighted_vote_score (proxy votos útiles)")
-ax.set_ylabel("Vader compound")
-ax.set_title("Puntuación ponderada de Steam vs sentimiento (vader_compound)", fontsize=13)
+ax.set_ylabel("RoBERTa compound")
+ax.set_title("Puntuación ponderada de Steam vs sentimiento (roberta_compound)", fontsize=13)
 ax.legend()
 fig.tight_layout()
 fig.savefig(FIGURES_DIR / "12_vote_score_vs_sentiment.png", dpi=150)
@@ -174,7 +174,7 @@ plt.close(fig)
 print(f"    r={r2:.3f}, p={p2:.4f} → Guardado: 12_vote_score_vs_sentiment.png")
 
 
-# ── Gráfico 5: Medias de playtime y weighted_vote_score por vader_sentiment ────
+# ── Gráfico 5: Medias de playtime y weighted_vote_score por roberta_sentiment ──
 # Agrupar por etiqueta de sentimiento (positive/neutral/negative) permite ver
 # si los usuarios más comprometidos (más horas) tienden a opinar de forma distinta
 # a los que dejan reseñas rápidas. También revela si la comunidad recompensa
@@ -182,7 +182,7 @@ print(f"    r={r2:.3f}, p={p2:.4f} → Guardado: 12_vote_score_vs_sentiment.png"
 print("[5] Medias de playtime y vote_score por sentiment...")
 
 engagement = (
-    df.groupby("vader_sentiment")[["playtime_hours", "weighted_vote_score"]]
+    df.groupby("roberta_sentiment")[["playtime_hours", "weighted_vote_score"]]
     .mean()
     .reindex(["negative", "neutral", "positive"])
 )
@@ -222,14 +222,14 @@ print("    Guardado: 13_engagement_by_sentiment.png")
 # (más robusto ante outliers y distribuciones no normales) para validar.
 print("\n── Correlaciones ───────────────────────────────────────────────────")
 
-r_pt_sp, p_pt_sp = stats.spearmanr(df["playtime_hours"], df["vader_compound"])
-r_ws_sp, p_ws_sp = stats.spearmanr(df["weighted_vote_score"], df["vader_compound"])
+r_pt_sp, p_pt_sp = stats.spearmanr(df["playtime_hours"], df["roberta_compound"])
+r_ws_sp, p_ws_sp = stats.spearmanr(df["weighted_vote_score"], df["roberta_compound"])
 
-print(f"  vader_compound ~ playtime_hours")
+print(f"  roberta_compound ~ playtime_hours")
 print(f"    Pearson  r={r:.4f}   p={p:.4f}")
 print(f"    Spearman r={r_pt_sp:.4f}   p={p_pt_sp:.4f}")
 print()
-print(f"  vader_compound ~ weighted_vote_score")
+print(f"  roberta_compound ~ weighted_vote_score")
 print(f"    Pearson  r={r2:.4f}   p={p2:.4f}")
 print(f"    Spearman r={r_ws_sp:.4f}   p={p_ws_sp:.4f}")
 print("────────────────────────────────────────────────────────────────────")

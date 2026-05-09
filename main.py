@@ -3,7 +3,7 @@ Pipeline de análisis de reseñas de Steam para Pragmata.
 
 Pasos:
   1. clean     — Limpia y lematiza el texto (controla reseñas positivas con --max-positives)
-  2. sentiment — Análisis de sentimiento VADER
+  2. sentiment — Análisis de sentimiento RoBERTa
   3. topics    — Modelado de temas LDA
   4. extra     — Análisis complementario (temporal + engagement)
 
@@ -23,7 +23,7 @@ ROOT = Path(__file__).parent
 
 SCRIPTS = {
     "clean":     ROOT / "src" / "data_processing" / "data_cleaning.py",
-    "sentiment": ROOT / "src" / "analysis" / "sentiment_analysis.py",
+    "sentiment": ROOT / "src" / "analysis" / "roberta_sentiment.py",
     "topics":    ROOT / "src" / "analysis" / "topic_modeling.py",
     "extra":     ROOT / "src" / "analysis" / "complementary_analysis.py",
 }
@@ -32,7 +32,7 @@ STEP_ORDER = ["clean", "sentiment", "topics", "extra"]
 
 STEP_DESCRIPTIONS = {
     "clean":     "Limpieza y lematización del texto",
-    "sentiment": "Análisis de sentimiento VADER",
+    "sentiment": "Análisis de sentimiento RoBERTa",
     "topics":    "Modelado de temas LDA",
     "extra":     "Análisis complementario (temporal + engagement)",
 }

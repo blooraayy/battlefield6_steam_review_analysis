@@ -19,8 +19,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # del directorio desde el que se ejecute el script.
 ROOT = Path(__file__).parents[2]
 
-# Cargamos el CSV de sentimiento porque ya incluye text_lemmatized y vader_sentiment.
-# Si solo existe el CSV limpio, las columnas de VADER simplemente no estarán.
+# Cargamos el CSV de sentimiento porque ya incluye text_lemmatized y roberta_sentiment.
 INPUT_CSV = ROOT / "data" / "battlefield6_reviews_sentiment.csv"
 OUTPUT_CSV = ROOT / "data" / "battlefield6_reviews_topics.csv"
 FIGURES_DIR = ROOT / "outputs" / "figures"
@@ -146,7 +145,7 @@ for topic_id in range(NUM_TOPICS):
     keywords = ", ".join(word for word, _ in words)
     print(f"\n  ── {topic_labels[topic_id]} [{keywords}] ──")
     for _, row in top_rows.iterrows():
-        print(f"    [{row.get('vader_sentiment', 'N/A')}] {row['text_cleaned'][:120]}")
+        print(f"    [{row.get('roberta_sentiment', 'N/A')}] {row['text_cleaned'][:120]}")
 
 
 # ── 8. Gráficos ───────────────────────────────────────────────────────────────
@@ -171,11 +170,10 @@ fig.tight_layout()
 fig.savefig(FIGURES_DIR / "06_topic_distribution.png", dpi=150)
 plt.close(fig)
 
-# ── 8.2 Tema dominante vs vader_sentiment ────────────────────────────────────
-# Solo si existe la columna vader_sentiment (generada por sentiment_analysis.py).
-if "vader_sentiment" in df.columns:
+# ── 8.2 Tema dominante vs roberta_sentiment ──────────────────────────────────
+if "roberta_sentiment" in df.columns:
     cross_vs = (
-        df.groupby(["dominant_topic", "vader_sentiment"])
+        df.groupby(["dominant_topic", "roberta_sentiment"])
         .size()
         .unstack(fill_value=0)
         .reindex(range(NUM_TOPICS))
@@ -187,20 +185,20 @@ if "vader_sentiment" in df.columns:
         color=[sentiment_colors.get(c, "gray") for c in cross_vs.columns],
         edgecolor="white",
     )
-    ax.set_title("Tema dominante vs vader_sentiment", fontsize=13)
+    ax.set_title("Tema dominante vs roberta_sentiment", fontsize=13)
     ax.set_xlabel("Tema dominante")
     ax.set_ylabel("Número de reseñas")
     ax.set_xticklabels([topic_labels[i] for i in cross_vs.index], rotation=15, ha="right")
-    ax.legend(title="vader_sentiment")
+    ax.legend(title="roberta_sentiment")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "07_topic_vs_vader_sentiment.png", dpi=150)
+    fig.savefig(FIGURES_DIR / "07_topic_vs_roberta_sentiment.png", dpi=150)
     plt.close(fig)
 
 # ── 8.3 Temas dominantes por categoría de sentimiento ────────────────────────
-if "vader_sentiment" in df.columns:
+if "roberta_sentiment" in df.columns:
     sentiment_colors = {"negative": "#EF5350", "neutral": "#FFC107", "positive": "#4CAF50"}
     for sentiment in ["negative", "neutral", "positive"]:
-        subset = df[df["vader_sentiment"] == sentiment]
+        subset = df[df["roberta_sentiment"] == sentiment]
         if subset.empty:
             continue
 
