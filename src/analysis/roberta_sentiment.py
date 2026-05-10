@@ -14,6 +14,7 @@ Ejecutar directamente:
 import json
 from pathlib import Path
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
@@ -151,9 +152,11 @@ weekly = df.set_index("date")["roberta_compound"].resample("W").mean().dropna()
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(weekly.index, weekly.values, marker="o", linewidth=1.5, color="#2196F3")
 ax.axhline(0, color="gray", linestyle="--", linewidth=0.8)
-ax.set_title("Sentimiento medio (roberta_compound) por semana", fontsize=13)
+ax.set_title("Sentimiento medio (RoBERTa) por semana", fontsize=13)
 ax.set_xlabel("Semana")
-ax.set_ylabel("roberta_compound medio")
+ax.set_ylabel("Puntuación de sentimiento media")
+ax.xaxis.set_major_locator(mdates.MonthLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%Y'))
 ax.tick_params(axis="x", rotation=30)
 fig.tight_layout()
 fig.savefig(FIGURES_DIR / "03_weekly_sentiment.png", dpi=150)

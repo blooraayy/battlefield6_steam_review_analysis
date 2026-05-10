@@ -25,6 +25,7 @@ nltk
 spacy
 gensim
 pyldavis
+wordcloud
 
 # ── Deep learning / transformers ──────────────────────────────────────────────
 # Para CPU: se instala automáticamente con el comando estándar

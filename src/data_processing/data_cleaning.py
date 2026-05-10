@@ -160,6 +160,9 @@ def clean_reviews(
         count = 0
         skipped = 0
         for row in dataset:
+            if row.get("language", "english").strip().lower() != "english":
+                skipped += 1
+                continue
             raw_text = row["text"]
             if _is_only_emojis(raw_text):
                 skipped += 1
