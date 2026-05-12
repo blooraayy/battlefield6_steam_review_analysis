@@ -11,6 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 from gensim import corpora, models
+from gensim.models import CoherenceModel
+from wordcloud import WordCloud
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -27,10 +29,19 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 NUM_TOPICS = 5          # número de temas a descubrir
 RANDOM_STATE = 42       # semilla para reproducibilidad
-NO_BELOW = 5            # ignorar tokens que aparezcan en menos de 5 documentos
-NO_ABOVE = 0.70         # ignorar tokens que aparezcan en más del 70% de los docs
+NO_BELOW = 10           # ignorar tokens que aparezcan en menos de 10 documentos
+NO_ABOVE = 0.40         # ignorar tokens que aparezcan en más del 40% de los docs
 EXAMPLES_PER_TOPIC = 3  # reseñas representativas a mostrar por tema
 SECONDARY_THRESHOLD = 0.20  # probabilidad mínima para considerar un tema secundario
+
+# Palabras muy frecuentes en reseñas de videojuegos sin valor discriminativo.
+# spaCy elimina stopwords genéricas; estas son específicas del dominio gaming.
+GAMING_STOPWORDS = {
+    "game", "play", "battlefield", "like", "feel", "good", "bad",
+    "get", "make", "go", "think", "know", "want", "need", "lot",
+    "time", "way", "thing", "people", "player", "great", "fun",
+    "bf", "ea", "dice", "give", "come", "look", "say", "year",
+}
 
 
 # ── 1. Carga de datos ─────────────────────────────────────────────────────────
@@ -46,7 +57,12 @@ print(f"    Filas cargadas: {len(df)}")
 # text_lemmatized ya está lematizado y sin stopwords; basta con separar por espacios.
 # Usamos esta columna porque es la representación lingüísticamente más limpia.
 print("[2/8] Tokenizando text_lemmatized...")
-tokenized = df["text_lemmatized"].fillna("").apply(str.split).tolist()
+tokenized = (
+    df["text_lemmatized"]
+    .fillna("")
+    .apply(lambda text: [w for w in text.split() if w not in GAMING_STOPWORDS])
+    .tolist()
+)
 
 
 # ── 3. Diccionario y corpus numérico ─────────────────────────────────────────
@@ -69,23 +85,31 @@ lda_model = models.LdaModel(
     id2word=dictionary,
     num_topics=NUM_TOPICS,
     random_state=RANDOM_STATE,
-    passes=10,          # número de pasadas completas sobre el corpus
-    chunksize=100,      # documentos procesados por iteración
+    passes=15,          # número de pasadas completas sobre el corpus
+    chunksize=2000,     # documentos procesados por iteración (ajustado para 91k docs)
     alpha="auto",       # aprende la distribución de temas por documento
     eta="auto",         # aprende la distribución de palabras por tema
 )
 print("    Entrenamiento completado.")
+
+# Coherence score c_v: mide la cohesión semántica de los temas (mayor = mejor).
+# Valores típicos: 0.4–0.5 aceptable, >0.5 bueno, >0.6 muy bueno.
+coherence_model = CoherenceModel(
+    model=lda_model, texts=tokenized, dictionary=dictionary, coherence="c_v", processes=1
+)
+coherence_score = coherence_model.get_coherence()
+print(f"    Coherence score (c_v): {coherence_score:.4f}")
 
 
 # ── 5. Palabras clave por tema ────────────────────────────────────────────────
 print("\n[5/8] Palabras clave por tema:")
 
 topic_labels = {
-    0: "Rendimiento",
-    1: "Mecánicas de combate",
-    2: "Valoración general positiva",
-    3: "Ambientación y universo del juego",
-    4: "Historia y personajes"
+    0: "Comparación con entregas anteriores",
+    1: "Mecánicas de combate y anti-cheat",
+    2: "Mapas, armas y vehículos",
+    3: "Problemas técnicos y servidores",
+    4: "Monetización y Battlepass",
 }
 
 for topic_id in range(NUM_TOPICS):
@@ -223,6 +247,7 @@ if "roberta_sentiment" in df.columns:
         ax.set_xlabel("Tema")
         ax.set_ylabel(ylabel)
         ax.set_ylim(0, max(s_values) * 1.15 if max(s_values) > 0 else 1)
+        ax.set_xticks(range(len(all_labels)))
         ax.set_xticklabels(all_labels, rotation=15, ha="right")
         fig.tight_layout()
         fname = {"negative": "14", "neutral": "15", "positive": "16"}[sentiment]
@@ -230,6 +255,27 @@ if "roberta_sentiment" in df.columns:
         plt.close(fig)
 
 print(f"    Gráficos guardados en: {FIGURES_DIR}")
+
+
+# ── 8.4 Word clouds por tema ──────────────────────────────────────────────────
+print("[8b] Generando word clouds por tema...")
+fig, axes = plt.subplots(1, NUM_TOPICS, figsize=(5 * NUM_TOPICS, 4))
+for topic_id, ax in enumerate(axes):
+    words = dict(lda_model.show_topic(topic_id, topn=30))
+    wc = WordCloud(
+        width=400, height=300,
+        background_color="white",
+        colormap="tab10",
+        max_words=30,
+    ).generate_from_frequencies(words)
+    ax.imshow(wc, interpolation="bilinear")
+    ax.set_title(topic_labels[topic_id], fontsize=9, wrap=True)
+    ax.axis("off")
+fig.suptitle("Palabras clave por tema (word cloud)", fontsize=13, y=1.02)
+fig.tight_layout()
+fig.savefig(FIGURES_DIR / "21_wordclouds_topics.png", dpi=150, bbox_inches="tight")
+plt.close(fig)
+print(f"    Word clouds guardados en: {FIGURES_DIR / '21_wordclouds_topics.png'}")
 
 
 # ── 9. Visualización interactiva con pyLDAvis ─────────────────────────────────

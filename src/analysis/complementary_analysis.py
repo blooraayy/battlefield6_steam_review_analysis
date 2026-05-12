@@ -12,6 +12,7 @@ ya que combina votos útiles y total de votos.
 import warnings
 from pathlib import Path
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -62,7 +63,9 @@ ax2.axhline(0, color="gray", linestyle="--", linewidth=0.8)
 
 ax1.set_xlabel("Semana")
 ax1.set_ylabel("Número de reseñas", color="#90CAF9")
-ax2.set_ylabel("RoBERTa compound medio", color="#1565C0")
+ax2.set_ylabel("Puntuación de sentimiento media", color="#1565C0")
+ax1.xaxis.set_major_locator(mdates.MonthLocator())
+ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m/%Y'))
 ax1.tick_params(axis="x", rotation=30)
 ax2.set_ylim(-1, 1)
 
@@ -93,11 +96,11 @@ total_per_week = weekly_topic.groupby("week")["count"].transform("sum")
 weekly_topic["proportion"] = weekly_topic["count"] / total_per_week
 
 topic_colors = {
-    "Rendimiento":                   "#EF5350",
-    "Mecánicas de combate":          "#5C6BC0",
-    "Valoración general positiva":   "#66BB6A",
-    "Ambientación y universo del juego": "#FFA726",
-    "Historia y personajes":         "#26A69A",
+    "Comparación con entregas anteriores": "#5C6BC0",
+    "Mecánicas de combate y anti-cheat":   "#EF5350",
+    "Mapas, armas y vehículos":            "#FFA726",
+    "Problemas técnicos y servidores":     "#26A69A",
+    "Monetización y Battlepass":           "#66BB6A",
 }
 
 fig, ax = plt.subplots(figsize=(13, 5))
@@ -110,6 +113,8 @@ ax.set_title("Proporción semanal de reseñas por tema dominante", fontsize=13)
 ax.set_xlabel("Semana")
 ax.set_ylabel("Proporción de reseñas")
 ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+ax.xaxis.set_major_locator(mdates.MonthLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%Y'))
 ax.tick_params(axis="x", rotation=30)
 ax.legend(fontsize=8, loc="upper right")
 fig.tight_layout()
@@ -233,6 +238,149 @@ print(f"  roberta_compound ~ weighted_vote_score")
 print(f"    Pearson  r={r2:.4f}   p={p2:.4f}")
 print(f"    Spearman r={r_ws_sp:.4f}   p={p_ws_sp:.4f}")
 print("────────────────────────────────────────────────────────────────────")
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# BLOQUE 3 – COMPARACIÓN POR GRUPOS (voted_up=True vs voted_up=False)
+# ════════════════════════════════════════════════════════════════════════════════
+
+# ── Gráfico 6: Distribución de temas por grupo voted_up ───────────────────────
+# Responde directamente a la pregunta de investigación: qué temas caracterizan
+# las reseñas positivas frente a las negativas.
+print("[6] Distribución de temas por grupo voted_up...")
+
+topic_by_group = (
+    df.groupby(["voted_up", "topic_label"])
+    .size()
+    .reset_index(name="count")
+)
+total_per_group = topic_by_group.groupby("voted_up")["count"].transform("sum")
+topic_by_group["proportion"] = topic_by_group["count"] / total_per_group
+
+positive_topics = topic_by_group[topic_by_group["voted_up"] == True].set_index("topic_label")["proportion"]
+negative_topics = topic_by_group[topic_by_group["voted_up"] == False].set_index("topic_label")["proportion"]
+
+all_topics = sorted(set(positive_topics.index) | set(negative_topics.index))
+pos_vals = [positive_topics.get(t, 0) for t in all_topics]
+neg_vals = [negative_topics.get(t, 0) for t in all_topics]
+
+x = np.arange(len(all_topics))
+width = 0.38
+
+fig, ax = plt.subplots(figsize=(12, 5))
+bars_pos = ax.bar(x - width / 2, pos_vals, width, label="Reseña positiva (voted_up=True)",
+                  color="#4CAF50", edgecolor="white")
+bars_neg = ax.bar(x + width / 2, neg_vals, width, label="Reseña negativa (voted_up=False)",
+                  color="#F44336", edgecolor="white")
+
+for bar in list(bars_pos) + list(bars_neg):
+    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.003,
+            f"{bar.get_height():.1%}", ha="center", va="bottom", fontsize=8)
+
+ax.set_title("Distribución de temas: reseñas positivas vs negativas", fontsize=13)
+ax.set_xlabel("Tema dominante")
+ax.set_ylabel("Proporción de reseñas")
+ax.set_xticks(x)
+ax.set_xticklabels(all_topics, rotation=15, ha="right", fontsize=9)
+ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+ax.legend()
+fig.tight_layout()
+fig.savefig(FIGURES_DIR / "22_topics_by_voted_up.png", dpi=150)
+plt.close(fig)
+print("    Guardado: 22_topics_by_voted_up.png")
+
+
+# ── Gráfico 7: Boxplot de horas jugadas por grupo voted_up ────────────────────
+# ¿Los jugadores que votan positivo tienen más horas que los negativos?
+# Usamos percentil 95 como límite superior para evitar que outliers extremos
+# compriman la visualización y oculten la distribución real.
+print("[7] Boxplot de horas jugadas por grupo voted_up...")
+
+df_box = df.dropna(subset=["playtime_hours"]).copy()
+p95 = df_box["playtime_hours"].quantile(0.95)
+df_box = df_box[df_box["playtime_hours"] <= p95]
+
+groups = [
+    df_box[df_box["voted_up"] == True]["playtime_hours"].values,
+    df_box[df_box["voted_up"] == False]["playtime_hours"].values,
+]
+labels_box = ["Positiva\n(voted_up=True)", "Negativa\n(voted_up=False)"]
+medians = [np.median(g) for g in groups]
+
+fig, ax = plt.subplots(figsize=(7, 5))
+bp = ax.boxplot(groups, labels=labels_box, patch_artist=True,
+                medianprops=dict(color="black", linewidth=2))
+colors_box = ["#4CAF50", "#F44336"]
+for patch, color in zip(bp["boxes"], colors_box):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.7)
+
+for i, median in enumerate(medians):
+    ax.text(i + 1, median + p95 * 0.02, f"{median:.0f}h",
+            ha="center", va="bottom", fontsize=10, fontweight="bold")
+
+ax.set_title("Horas jugadas por tipo de reseña (percentil 95)", fontsize=13)
+ax.set_ylabel("Horas jugadas")
+ax.set_xlabel("Tipo de reseña")
+fig.tight_layout()
+fig.savefig(FIGURES_DIR / "23_playtime_by_voted_up.png", dpi=150)
+plt.close(fig)
+print("    Guardado: 23_playtime_by_voted_up.png")
+
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# BLOQUE 4 – VISUALIZACIÓN RESUMEN
+# ════════════════════════════════════════════════════════════════════════════════
+
+# ── Gráfico 8: Heatmap de sentimiento por tema ────────────────────────────────
+# Conecta todos los hallazgos principales en una sola visualización:
+# qué temas generan más satisfacción o insatisfacción entre los jugadores.
+print("[8] Heatmap de sentimiento por tema (visualización resumen)...")
+
+import matplotlib.colors as mcolors
+
+heatmap_data = (
+    df.groupby(["topic_label", "roberta_sentiment"])
+    .size()
+    .unstack(fill_value=0)
+)
+# Normalizar a porcentaje por fila (por tema)
+heatmap_pct = heatmap_data.div(heatmap_data.sum(axis=1), axis=0) * 100
+
+# Ordenar columnas: negative, neutral, positive
+col_order = [c for c in ["negative", "neutral", "positive"] if c in heatmap_pct.columns]
+heatmap_pct = heatmap_pct[col_order]
+
+col_labels = {"negative": "Negativo", "neutral": "Neutral", "positive": "Positivo"}
+heatmap_pct.columns = [col_labels[c] for c in heatmap_pct.columns]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+im = ax.imshow(heatmap_pct.values, cmap="RdYlGn", aspect="auto", vmin=0, vmax=100)
+
+ax.set_xticks(range(len(heatmap_pct.columns)))
+ax.set_xticklabels(heatmap_pct.columns, fontsize=11)
+ax.set_yticks(range(len(heatmap_pct.index)))
+ax.set_yticklabels(heatmap_pct.index, fontsize=9)
+
+for i in range(len(heatmap_pct.index)):
+    for j in range(len(heatmap_pct.columns)):
+        val = heatmap_pct.values[i, j]
+        text_color = "black" if 20 < val < 80 else "white"
+        ax.text(j, i, f"{val:.1f}%", ha="center", va="center",
+                fontsize=10, color=text_color, fontweight="bold")
+
+cbar = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.04)
+cbar.set_label("% de reseñas", fontsize=10)
+
+ax.set_title("Sentimiento por tema dominante — visión general", fontsize=13)
+ax.set_xlabel("Sentimiento (RoBERTa)", fontsize=11)
+ax.set_ylabel("Tema dominante", fontsize=11)
+fig.tight_layout()
+fig.savefig(FIGURES_DIR / "24_heatmap_sentiment_topic.png", dpi=150)
+plt.close(fig)
+print("    Guardado: 24_heatmap_sentiment_topic.png")
+
 
 print(f"\nTodos los gráficos guardados en: {FIGURES_DIR}")
 print("── Análisis complementario completado ──────────────────────────────")
