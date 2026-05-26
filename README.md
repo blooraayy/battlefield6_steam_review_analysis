@@ -140,21 +140,6 @@ pip install -r requirements.txt
 # Instalar dependencias (GPU — CUDA 12.1)
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-## Tecnologías
-
-| Categoría | Librería / Herramienta |
-|-----------|------------------------|
-| Datos y cálculo | `pandas`, `numpy`, `scipy` |
-| NLP clásico | `nltk` (VADER), `spacy`, `gensim` (LDA) |
-| Deep Learning | `torch`, `transformers` (HuggingFace) |
-| Visualización | `matplotlib`, `pyLDAvis`, `wordcloud` |
-| Extracción datos | `requests` (Steam Web API) |
-| Utilidades | `tqdm`, `pathlib` |
-
----
-
-## Datos
-
 Los datos en bruto se obtienen de la **Steam Web API pública** sin necesidad de autenticación. El archivo `data/battlefield6_reviews_raw.csv` no se incluye en el repositorio por su tamaño; puedes generarlo ejecutando:
 
 ```bash
@@ -188,7 +173,7 @@ Este trabajo está publicado bajo la licencia **Creative Commons Atribución-NoC
 Si utilizas este trabajo en tu investigación, por favor cítalo de la siguiente manera:
 
 ```
-blooraayy (2025). Battlefield 6 Steam Review Analysis:
+blooraayy (2026). Battlefield 6 Steam Review Analysis:
 NLP Pipeline para análisis de sentimiento y modelado de temas en Steam.
 GitHub. https://github.com/blooraayy/battlefied6_steam_review_analysis
 ```
@@ -197,6 +182,6 @@ GitHub. https://github.com/blooraayy/battlefied6_steam_review_analysis
 
 ## Autor
 
-**blooraayy** — Trabajo académico, 2025.
+**blooraayy & Paboct** — Trabajo académico para la asignatura de Analítica Web y Redes Sociales.
 
 > *Este proyecto fue desarrollado con fines exclusivamente académicos como parte de un análisis de texto sobre temas de actualidad.*
